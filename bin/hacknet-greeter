@@ -1,0 +1,35 @@
+#!/bin/bash
+if [ -z "$XDG_RUNTIME_DIR" ] || [ ! -d "$XDG_RUNTIME_DIR" ]; then
+    export XDG_RUNTIME_DIR="/tmp/greeter-runtime-$(id -u)"
+    mkdir -p "$XDG_RUNTIME_DIR"
+    chmod 700 "$XDG_RUNTIME_DIR"
+fi
+
+drm_driver=""
+if [ -e /sys/class/drm/card0/device/driver ]; then
+    drm_driver=$(basename "$(readlink -f /sys/class/drm/card0/device/driver)" 2>/dev/null)
+fi
+
+case "${drm_driver}" in
+    virtio*|qxl*|vmwgfx*|vbox*|bochs*|cirrus*|"")
+        software=1
+        ;;
+    *)
+        if [ -e /dev/dri/renderD128 ]; then
+            software=0
+        else
+            software=1
+        fi
+        ;;
+esac
+
+if [ "${software}" = "1" ]; then
+    export WLR_RENDERER=pixman
+    export QT_QUICK_BACKEND=software
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export WLR_NO_HARDWARE_CURSORS=1
+fi
+
+export XDG_CURRENT_DESKTOP=HacknetOS
+export XDG_SESSION_TYPE=wayland
+exec sway --config /etc/greetd/sway-greeter.conf

@@ -1,0 +1,26 @@
+# Build / test screenshots & logs
+*.log
+*.png
+*.ppm
+*.bmp
+*.tmp
+*.bak
+*.old
+__pycache__/
+*.pyc
+
+# Secrets & keys
+*.pem
+*.key
+*private*.asc
+.env
+.env.*
+
+# Editor & OS
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+.idea/
+.vscode/

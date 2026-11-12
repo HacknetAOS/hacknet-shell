@@ -1,0 +1,7 @@
+module Hacknet.Singletons
+
+singleton Theme 1.0 Theme.qml
+singleton Geo 1.0 Geo.qml
+singleton Daemon 1.0 Daemon.qml
+singleton Ui 1.0 Ui.qml
+singleton Notifs 1.0 Notifs.qml

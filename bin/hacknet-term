@@ -1,0 +1,14 @@
+#!/bin/sh
+# hacknet-term - launch foot with the HacknetOS theme.
+#
+# Every terminal surface (docked TERMINAL, DISPLAY apps, dock shells) goes
+# through here so the lavender console palette is identical everywhere.
+set -u
+
+theme="${XDG_STATE_HOME:-$HOME/.local/state}/hacknet/theme/foot.ini"
+[ -f "$theme" ] || theme="/etc/hacknet/foot.ini"
+
+if [ -f "$theme" ]; then
+    exec foot -c "$theme" "$@"
+fi
+exec foot "$@"

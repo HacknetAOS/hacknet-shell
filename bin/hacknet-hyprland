@@ -1,0 +1,95 @@
+#!/bin/sh
+# HacknetOS session entrypoint (invoked by the login shell, greetd or the live
+# service). It starts the compositor; quickshell is only a client and cannot
+# run without one.
+
+# Security guard: the greeter account is restricted to the login screen and must never run a desktop session
+if [ "$USER" = "greeter" ]; then
+    echo "ERROR: greeter account cannot run a user desktop session." >&2
+    exit 1
+fi
+unset DISPLAY
+export GDK_BACKEND=wayland
+export GTK_THEME=Adwaita-dark
+export QT_QPA_PLATFORM=wayland
+export MOZ_ENABLE_WAYLAND=1
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && [ -n "$XDG_RUNTIME_DIR" ]; then
+    export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+fi
+
+export XDG_CURRENT_DESKTOP=HacknetOS
+export XDG_SESSION_DESKTOP=HacknetOS
+export XDG_SESSION_TYPE=wayland
+
+# Some login paths hand the session an empty/C locale; foot refuses to start
+# without a UTF-8 locale, so pin one.
+case "${LANG:-C}" in
+    C|POSIX|"") export LANG=en_US.UTF-8 ;;
+esac
+
+mkdir -p "${XDG_RUNTIME_DIR:-/tmp}/hacknet" 2>/dev/null || true
+
+# Export session identity to dbus activation environment.
+# Note: WAYLAND_DISPLAY and portal service activation occur after the compositor
+# starts up (see sway/hacknet.conf and hyprland/hacknet.lua) so that xdg-desktop-portal-gtk
+# can connect to the live Wayland display instead of failing on startup.
+dbus-update-activation-environment --systemd \
+    XDG_CURRENT_DESKTOP XDG_SESSION_DESKTOP XDG_SESSION_TYPE 2>/dev/null || true
+
+# Optional services (the compositor config also starts hacknetd/quickshell).
+pgrep -x pipewire    >/dev/null 2>&1 || { pipewire    >/dev/null 2>&1 & }
+pgrep -x wireplumber >/dev/null 2>&1 || { wireplumber >/dev/null 2>&1 & }
+
+if [ ! -f "${HOME}/.local/state/hacknet/theme/current" ]; then
+    hacknet-theme apply blue >/dev/null 2>&1 || true
+fi
+
+# ---------------------------------------------------------------------------
+# Pick a compositor that can actually scan out on this machine.
+#
+# Hyprland's aquamarine backend needs GBM/modifier support. Virtual GPUs
+# (virtio-gpu under QEMU/KVM, qxl, vmwgfx, VirtualBox) frequently fail with
+# "GBM: Failed to allocate a GBM buffer" and leave a black screen, so they run
+# sway with wlroots' pixman (CPU) renderer instead. Real GPUs keep Hyprland.
+# ---------------------------------------------------------------------------
+drm_driver=""
+if [ -e /sys/class/drm/card0/device/driver ]; then
+    drm_driver=$(basename "$(readlink -f /sys/class/drm/card0/device/driver)" 2>/dev/null)
+fi
+
+case "${drm_driver}" in
+    virtio*|qxl*|vmwgfx*|vbox*|bochs*|cirrus*|"")
+        software=1
+        ;;
+    *)
+        if [ -e /dev/dri/renderD128 ]; then
+            software=0
+        else
+            software=1
+        fi
+        ;;
+esac
+
+if [ "${software}" = "1" ]; then
+    echo "hacknet: using sway + pixman (drm driver: ${drm_driver:-none})"
+    export WLR_RENDERER=pixman
+    export QT_QUICK_BACKEND=software
+    export LIBGL_ALWAYS_SOFTWARE=1
+    export WLR_NO_HARDWARE_CURSORS=1
+    ( sleep 2; hacknet-layout --watch >/dev/null 2>&1 ) &
+    exec sway -c /etc/sway/hacknet.conf
+fi
+
+echo "hacknet: using Hyprland (drm driver: ${drm_driver})"
+# Place the terminal and keep the grid authoritative while the session runs.
+( sleep 3; hacknet-layout --watch >/dev/null 2>&1 ) &
+Hyprland -c /etc/xdg/hypr/hacknet.conf
+rc=$?
+
+# Last-resort fallback if Hyprland started but exited.
+if [ "${rc}" -ne 0 ]; then
+    echo "hacknet: Hyprland exited with ${rc}; falling back to sway (pixman)" >&2
+    export WLR_RENDERER=pixman QT_QUICK_BACKEND=software
+    exec sway -c /etc/sway/hacknet.conf
+fi
+exit "${rc}"

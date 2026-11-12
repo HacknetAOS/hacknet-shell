@@ -1,0 +1,8 @@
+#!/bin/sh
+# hacknet-dock-term - open a new terminal in the right-side terminal panel.
+#
+# Launches foot as hacknet-term (Zone::Terminal), placing it into the right-side
+# terminal panel. Each terminal gets its own NetMap node, and clicking its node
+# or pressing Super+Tab while in the terminal cycles between them.
+set -u
+exec hacknet-term --app-id hacknet-term

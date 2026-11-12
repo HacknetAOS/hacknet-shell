@@ -1,0 +1,147 @@
+#!/bin/bash
+# hacknet-layout - place HacknetOS windows on the fixed grid.
+#
+# The shell draws the frames; applications are real compositor windows placed
+# inside them. Geometry mirrors shell/singletons/Geo.qml, so every resolution
+# keeps the same proportions.
+#
+#   hacknet-layout              start the terminal and place windows
+#   hacknet-layout --reflow     ask the daemon to reconcile once
+#   hacknet-layout --stage CMD  also launch CMD in the DISPLAY region
+
+set -uo pipefail
+
+log() { printf 'hacknet-layout: %s\n' "$*" >&2; }
+
+# The session script starts us just before the compositor, so the socket may
+# not exist yet and SWAYSOCK is only exported into the compositor's own
+# children. Discover it (waiting briefly) instead of giving up.
+if [ -z "${SWAYSOCK:-}" ] && command -v swaymsg >/dev/null 2>&1; then
+    for _ in $(seq 1 60); do
+        sock=$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/sway-ipc.*.sock 2>/dev/null | head -1)
+        if [ -n "$sock" ]; then
+            export SWAYSOCK="$sock"
+            break
+        fi
+        sleep 0.25
+    done
+fi
+
+# Same for the Wayland socket: foot refuses to start without it, and the
+# session script launches us before the compositor exports it.
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    for _ in $(seq 1 60); do
+        wl=$(ls -t "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"/wayland-[0-9]* 2>/dev/null | head -1)
+        if [ -n "$wl" ] && [ -S "$wl" ]; then
+            export WAYLAND_DISPLAY="$(basename "$wl")"
+            break
+        fi
+        sleep 0.25
+    done
+fi
+
+backend=""
+if [ -n "${SWAYSOCK:-}" ] && command -v swaymsg >/dev/null 2>&1; then
+    backend=sway
+elif command -v hyprctl >/dev/null 2>&1 && hyprctl version >/dev/null 2>&1; then
+    backend=hyprland
+fi
+[ -n "$backend" ] || { log "no supported compositor"; exit 1; }
+
+sway_size() {
+    swaymsg -t get_outputs -r 2>/dev/null | python3 -c '
+import json, sys
+outs = json.load(sys.stdin)
+sel = [o for o in outs if o.get("focused")] or [o for o in outs if o.get("active")] or outs
+r = sel[0]["rect"]
+print(r["width"], r["height"])
+'
+}
+
+hypr_size() {
+    hyprctl monitors -j 2>/dev/null | python3 -c '
+import json, sys
+mons = json.load(sys.stdin)
+sel = [m for m in mons if m.get("focused")] or mons
+print(sel[0]["width"], sel[0]["height"])
+'
+}
+
+if [ "$backend" = sway ]; then
+    read -r W H < <(sway_size)
+else
+    read -r W H < <(hypr_size)
+fi
+
+if [ -z "${W:-}" ] || [ -z "${H:-}" ] || [ "$W" -le 0 ] 2>/dev/null; then
+    log "cannot read output size"
+    exit 1
+fi
+
+read -r S TOP GUTTER NET TERM HEADER < <(python3 - "$W" "$H" <<'PY'
+import sys
+w, h = int(sys.argv[1]), int(sys.argv[2])
+s = max(0.75, min(2.0, h / 1080))
+print(s, round(26 * s), round(262 * s), round(184 * s),
+      max(round(360 * s), round(w * 0.39)), round(22 * s))
+PY
+)
+
+STAGE_W=$(( W - GUTTER - TERM ))
+STAGE_H=$(( H - TOP - NET ))
+
+TERM_X=$(( W - TERM + 1 ))
+TERM_Y=$(( TOP + HEADER + 2 ))
+TERM_W=$(( TERM - 2 ))
+TERM_H=$(( H - TERM_Y ))
+STAGE_X=$(( GUTTER + 1 ))
+STAGE_Y=$(( TOP + HEADER + 2 + 20 ))
+STAGE_APP_W=$(( STAGE_W - 2 ))
+STAGE_APP_H=$(( STAGE_H - HEADER - 22 ))
+
+
+start_terminal() {
+    pgrep -f "app-id hacknet-term" >/dev/null 2>&1 && return
+    if command -v hacknet-term >/dev/null 2>&1; then
+        hacknet-term --app-id hacknet-term >/dev/null 2>&1 &
+    elif command -v foot >/dev/null 2>&1; then
+        foot --app-id hacknet-term >/dev/null 2>&1 &
+    fi
+}
+
+settle() {
+    # Wait for the windows to map; the daemon places them.
+    sleep 2
+}
+
+case "${1:-}" in
+    --reflow)
+        # Placement is the daemon's job; ask it to reconcile once.
+        pgrep -x hacknetd >/dev/null 2>&1 && exit 0
+        ;;
+    --watch)
+        # Keep the docked terminal running; the daemon owns placement.
+        start_terminal
+        (
+            if [ "$backend" = sway ]; then
+                swaymsg -t subscribe -m '["window"]' | while read -r _; do
+                    :
+                done
+            else
+                socat -U UNIX-CONNECT:"$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock" - 2>/dev/null \
+                | while read -r ev; do :; done
+            fi
+        ) &
+        settle
+        ;;
+    --stage)
+        shift
+        [ "$#" -gt 0 ] && ( "$@" >/dev/null 2>&1 & )
+        start_terminal
+        settle
+        ;;
+    *)
+        start_terminal
+        settle
+        ;;
+esac
