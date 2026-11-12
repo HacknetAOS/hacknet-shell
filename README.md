@@ -1,7 +1,6 @@
 # hacknet-shell
 
 [![CI](https://github.com/HacknetAOS/hacknet-shell/actions/workflows/ci.yml/badge.svg)](https://github.com/HacknetAOS/hacknet-shell/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Quickshell (QtQuick / `wlr-layer-shell`) desktop environment, login greeter, and compositor session scripts for HacknetAOS.
 
@@ -41,7 +40,3 @@ Quickshell (QtQuick / `wlr-layer-shell`) desktop environment, login greeter, and
 | `Super+Q` / `Super+W` | Close focused window |
 | `Super+1..5` | Switch virtual desktop |
 | `Print` | Save screenshot to `~/Pictures` |
-
-## License
-
-MIT. See [LICENSE](LICENSE).
