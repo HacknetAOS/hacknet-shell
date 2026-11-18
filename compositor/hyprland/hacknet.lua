@@ -172,11 +172,14 @@ hl.bind(mainMod .. " + L",            hl.dsp.exec_cmd("sh -c 'mkdir -p ~/.local/
 -- Super+E opens file manager (thunar)
 hl.bind(mainMod .. " + E",            hl.dsp.exec_cmd("thunar"))
 
--- Volume controls
+-- Volume & media controls
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("hacknetctl volume up"))
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("hacknetctl volume down"))
 hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("hacknetctl volume mute"))
+hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"))
 hl.bind("XF86AudioPlay",        hl.dsp.exec_cmd("hacknetctl media play_pause"))
+hl.bind("XF86AudioPause",       hl.dsp.exec_cmd("hacknetctl media pause"))
+hl.bind("XF86AudioStop",        hl.dsp.exec_cmd("hacknetctl media stop"))
 hl.bind("XF86AudioNext",        hl.dsp.exec_cmd("hacknetctl media next"))
 hl.bind("XF86AudioPrev",        hl.dsp.exec_cmd("hacknetctl media previous"))
 
