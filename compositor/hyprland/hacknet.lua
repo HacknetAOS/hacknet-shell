@@ -124,9 +124,9 @@ hl.workspace = {
 -- ---------------------------------------------------------------- keybinds
 local mainMod = "SUPER"
 
--- App Opener / Search Bar: Super key alone or Super+Space opens search bar
-hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd("hacknet-launcher"))
-hl.bind(mainMod,               hl.dsp.exec_cmd("hacknet-launcher"))
+-- App Opener / Search Bar: Super key alone (release) opens search bar
+hl.bind(mainMod .. " + Super_L", hl.dsp.exec_cmd("hacknet-launcher"), { release = true })
+hl.bind(mainMod .. " + Super_R", hl.dsp.exec_cmd("hacknet-launcher"), { release = true })
 
 -- Terminal: Super+Enter opens a NEW left dock terminal slot (own NetMap node)
 hl.bind(mainMod .. " + RETURN",       hl.dsp.exec_cmd("hacknet-dock-term"))
