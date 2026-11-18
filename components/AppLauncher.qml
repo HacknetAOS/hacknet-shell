@@ -51,6 +51,7 @@ Rectangle {
     property var allApps: []
     property var fileResults: []
     property var filteredResults: []
+    readonly property int desiredHeight: Math.min(520, Math.max(180, 124 + Math.min(filteredResults.length, 7) * 52))
 
     // Built-in system actions and commands
     readonly property var systemActions: [
@@ -229,21 +230,32 @@ Rectangle {
         }
     }
 
-    // File search process
+    // File search process (supports ~/..., /..., or $HOME name search)
     Process {
         id: fileSearcher
         property string pendingQuery: ""
-        command: ["sh", "-c", "find \"$HOME\" -maxdepth 3 -iname \"*" + pendingQuery.replace(/["\\]/g, "") + "*\" ! -path \"*/.*\" 2>/dev/null | head -6"]
+        command: [
+            "sh", "-c",
+            "q=\"$1\"; " +
+            "case \"$q\" in " +
+            "  ~/*) p=\"$HOME/${q#~/}\"; [ -e \"$p\" ] && printf '%s\\n' \"$p\" ;; " +
+            "  /*) [ -e \"$q\" ] && printf '%s\\n' \"$q\" ;; " +
+            "esac; " +
+            "find \"$HOME\" -maxdepth 4 -iname \"*$q*\" ! -path '*/.*' 2>/dev/null | head -n 6",
+            "sh", pendingQuery
+        ]
         stdout: StdioCollector {
             onTextChanged: {
                 if (!text) return;
                 let lines = text.split("\n");
                 let files = [];
+                let seen = {};
                 for (let i = 0; i < lines.length; i++) {
                     let line = lines[i].trim();
-                    if (line.length > 0) {
+                    if (line.length > 0 && !seen[line]) {
+                        seen[line] = true;
                         let parts = line.split("/");
-                        let fname = parts[parts.length - 1];
+                        let fname = parts[parts.length - 1] || line;
                         files.push({ name: fname, path: line });
                     }
                 }
@@ -260,9 +272,11 @@ Rectangle {
         onTriggered: {
             let q = root.query.trim();
             if (q.length >= 2) {
+                fileSearcher.running = false;
                 fileSearcher.pendingQuery = q;
                 fileSearcher.running = true;
             } else {
+                fileSearcher.running = false;
                 root.fileResults = [];
                 root.updateResults();
             }
@@ -290,7 +304,8 @@ Rectangle {
     }
 
     function updateResults() {
-        let q = root.query.trim().toLowerCase();
+        let rawQ = root.query.trim();
+        let q = rawQ.toLowerCase();
         let res = [];
 
         if (q.length === 0) {
@@ -383,26 +398,46 @@ Rectangle {
             });
         }
 
-        // 4. Fallback execution options
+        // 3b. Inline arithmetic evaluation (e.g. 2+2, 1024*8)
+        if (/^[0-9+\-*/().\s%]+$/.test(rawQ) && /[+\-*/%]/.test(rawQ)) {
+            try {
+                let val = Function("return (" + rawQ + ")")();
+                if (typeof val === "number" && isFinite(val)) {
+                    let valStr = String(val);
+                    res.unshift({
+                        type: "calc",
+                        badge: "[CALC]",
+                        badgeColor: "#9ece6a",
+                        title: "= " + valStr,
+                        desc: "Press Enter to copy result to clipboard",
+                        action: (function(v) {
+                            return function() { Ui.closeAll(); Quickshell.execDetached(["wl-copy", v]); };
+                        })(valStr)
+                    });
+                }
+            } catch (e) {}
+        }
+
+        // 4. Fallback execution options (preserve original case!)
         res.push({
             type: "cmd",
             badge: "[TERM]",
             badgeColor: Theme.fg,
-            title: "Run in terminal: " + q,
+            title: "Run in terminal: " + rawQ,
             desc: "Launch inside foot terminal",
             action: (function(cmdStr) {
                 return function() { Ui.closeAll(); Quickshell.execDetached(["foot", "bash", "-lc", cmdStr + "; exec bash"]); };
-            })(q)
+            })(rawQ)
         });
         res.push({
             type: "cmd",
             badge: "[EXEC]",
             badgeColor: Theme.fg,
-            title: "Execute command: " + q,
+            title: "Execute command: " + rawQ,
             desc: "Run process in background",
             action: (function(cmdStr) {
                 return function() { Ui.closeAll(); Quickshell.execDetached(["sh", "-c", cmdStr]); };
-            })(q)
+            })(rawQ)
         });
 
         root.filteredResults = res;

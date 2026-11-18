@@ -205,13 +205,13 @@ Item {
         screen: root.screen
         anchors { top: true; left: true }
         margins {
-            top: Math.round(root.sh * 0.16)
+            top: 40
             left: Math.round((root.sw - Math.min(root.sw - 40, 680)) / 2)
         }
         width: Math.min(root.sw - 40, 680)
         implicitWidth: Math.min(root.sw - 40, 680)
-        height: Math.min(root.sh - 80, 520)
-        implicitHeight: Math.min(root.sh - 80, 520)
+        height: Math.min(root.sh - 80, launcherModal.desiredHeight)
+        implicitHeight: Math.min(root.sh - 80, launcherModal.desiredHeight)
         exclusionMode: ExclusionMode.Ignore
         color: "transparent"
         visible: Ui.launcherOpen
