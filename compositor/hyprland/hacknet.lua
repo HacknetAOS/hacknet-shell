@@ -124,9 +124,9 @@ hl.workspace = {
 -- ---------------------------------------------------------------- keybinds
 local mainMod = "SUPER"
 
--- App Opener / Search Bar: Super key alone or Super+Space opens search bar
-hl.bind(mainMod .. " + SPACE", hl.dsp.exec_cmd("hacknet-launcher"))
-hl.bind(mainMod,               hl.dsp.exec_cmd("hacknet-launcher"))
+-- App Opener / Search Bar: Super key alone (release) opens search bar
+hl.bind(mainMod .. " + Super_L", hl.dsp.exec_cmd("hacknet-launcher"), { release = true })
+hl.bind(mainMod .. " + Super_R", hl.dsp.exec_cmd("hacknet-launcher"), { release = true })
 
 -- Terminal: Super+Enter opens a NEW left dock terminal slot (own NetMap node)
 hl.bind(mainMod .. " + RETURN",       hl.dsp.exec_cmd("hacknet-dock-term"))
@@ -172,11 +172,14 @@ hl.bind(mainMod .. " + L",            hl.dsp.exec_cmd("sh -c 'mkdir -p ~/.local/
 -- Super+E opens file manager (thunar)
 hl.bind(mainMod .. " + E",            hl.dsp.exec_cmd("thunar"))
 
--- Volume controls
+-- Volume & media controls
 hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("hacknetctl volume up"))
 hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("hacknetctl volume down"))
 hl.bind("XF86AudioMute",        hl.dsp.exec_cmd("hacknetctl volume mute"))
+hl.bind("XF86AudioMicMute",     hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"))
 hl.bind("XF86AudioPlay",        hl.dsp.exec_cmd("hacknetctl media play_pause"))
+hl.bind("XF86AudioPause",       hl.dsp.exec_cmd("hacknetctl media pause"))
+hl.bind("XF86AudioStop",        hl.dsp.exec_cmd("hacknetctl media stop"))
 hl.bind("XF86AudioNext",        hl.dsp.exec_cmd("hacknetctl media next"))
 hl.bind("XF86AudioPrev",        hl.dsp.exec_cmd("hacknetctl media previous"))
 
@@ -197,3 +200,10 @@ hl.exec_cmd("sh -c 'while :; do pgrep -f \"[f]oot.*hacknet-term\" >/dev/null 2>&
 
 -- Keep the pointer usable even with no window focused.
 -- (Not needed for Hyprland, handled by cursor_no_warps)
+
+-- User-defined keybinds and input overrides from hacknet-settings
+local home = os.getenv("HOME") or ""
+if home ~= "" then
+    pcall(dofile, home .. "/.config/hypr/hacknet-user-binds.lua")
+    pcall(dofile, home .. "/.config/hypr/hacknet-user-input.lua")
+end

@@ -27,17 +27,17 @@ Item {
             Repeater {
                 model: 16
                 Rectangle {
-                    width: 460
+                    width: 520
                     height: waveRow.height
                     color: "transparent"
                     gradient: Gradient {
                         orientation: Gradient.Horizontal
                         GradientStop { position: 0.00; color: "#00000000" }
-                        GradientStop { position: 0.28; color: "#00000000" }
-                        GradientStop { position: 0.39; color: "#0a0e14" }
-                        GradientStop { position: 0.50; color: "#18202a" }
-                        GradientStop { position: 0.61; color: "#0a0e14" }
-                        GradientStop { position: 0.72; color: "#00000000" }
+                        GradientStop { position: 0.18; color: "#00000000" }
+                        GradientStop { position: 0.34; color: "#0d0d0d" }
+                        GradientStop { position: 0.50; color: "#262626" }
+                        GradientStop { position: 0.66; color: "#0d0d0d" }
+                        GradientStop { position: 0.82; color: "#00000000" }
                         GradientStop { position: 1.00; color: "#00000000" }
                     }
                 }
@@ -45,8 +45,8 @@ Item {
 
             NumberAnimation on x {
                 from: 0
-                to: -460
-                duration: 10500
+                to: -520
+                duration: 12000
                 loops: Animation.Infinite
                 running: true
             }

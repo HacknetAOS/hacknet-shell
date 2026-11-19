@@ -13,7 +13,8 @@ Item {
     }
 
     function execPower(cmd) {
-        powerProc.command = ["loginctl", cmd];
+        powerProc.running = false;
+        powerProc.command = ["systemctl", cmd];
         powerProc.running = true;
     }
 

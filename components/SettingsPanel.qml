@@ -1,13 +1,13 @@
 import QtQuick
+import Quickshell
 import "../singletons"
 
-// Settings / control center, styled like a Hacknet window: grey caption strip,
-// flat buttons, no rounded panels or coloured gradients.
-// Sections appear dynamically based on available hardware/commands.
+// Control Center: quick hardware & media controls only.
+// Full OS, desktop, theme, and keybind settings live in hacknet-settings.
 Rectangle {
     id: root
     implicitWidth: 520
-    implicitHeight: 640
+    implicitHeight: 560
 
     color: "#0b0d13"
     border.width: 1
@@ -29,8 +29,6 @@ Rectangle {
         color: Theme.borderDim
     }
 
-    // Scrollable content: the control center holds more sections than fit on
-    // small outputs, so nothing is ever cut off.
     Flickable {
         id: flick
         anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 30
@@ -80,9 +78,34 @@ Rectangle {
             anchors { left: parent.left; right: parent.right; leftMargin: 18; rightMargin: 18 }
             spacing: 14
 
-            // -------------------------------------------------------- THEME
+            // -------------------------------------------------------- VOLUME
             Text {
-                text: "THEME"
+                text: "VOLUME"
+                color: "#9aa0ab"
+                font.family: Theme.mono
+                font.pixelSize: Theme.monoPx
+                font.letterSpacing: 1
+            }
+
+            HacknetSlider {
+                width: parent.width
+                label: "OUTPUT VOLUME"
+                value: Math.min(1.0, Daemon.currentVolume)
+                displayValue: Daemon.isMuted ? "MUTED" : Math.round(Daemon.currentVolume * 100) + "%"
+                onValueChangedByUser: (val) => Daemon.setVolume(val)
+            }
+
+            LauncherButton {
+                label: Daemon.isMuted ? "UNMUTE" : "MUTE"
+                active: Daemon.isMuted
+                onTriggered: Daemon.toggleMute()
+            }
+
+            Rectangle { width: parent.width; height: 1; color: Theme.borderDim }
+
+            // ------------------------------------------------ MEDIA CONTROLS
+            Text {
+                text: "MEDIA CONTROLS"
                 color: "#9aa0ab"
                 font.family: Theme.mono
                 font.pixelSize: Theme.monoPx
@@ -92,41 +115,41 @@ Rectangle {
             Flow {
                 width: parent.width
                 spacing: 8
-                Repeater {
-                    model: [
-                        { id: "blue",   name: "BLUE"   },
-                        { id: "ente",   name: "ENTE"   },
-                        { id: "hellhound", name: "HELLHOUND" },
-                        { id: "naix",   name: "NAIX"   },
-                        { id: "hacknet", name: "HACKNET" }
-                    ]
-                    delegate: LauncherButton {
-                        label: modelData.name
-                        active: Theme.themeId === modelData.id
-                        onTriggered: Daemon.setTheme(modelData.id)
-                    }
+
+                LauncherButton {
+                    label: "PREV"
+                    onTriggered: Daemon.run("hacknetctl", ["media", "prev"])
+                }
+
+                LauncherButton {
+                    label: "PLAY / PAUSE"
+                    onTriggered: Daemon.run("hacknetctl", ["media", "play_pause"])
+                }
+
+                LauncherButton {
+                    label: "STOP"
+                    onTriggered: Daemon.run("hacknetctl", ["media", "stop"])
+                }
+
+                LauncherButton {
+                    label: "NEXT"
+                    onTriggered: Daemon.run("hacknetctl", ["media", "next"])
                 }
             }
 
-            // Admin-configurable default theme from /etc/hacknetos/theme.cfg
-            Text {
-                width: parent.width
-                text: "config: " + (Daemon.themeCfg || "blue")
-                color: Theme.dim
-                font.family: Theme.mono
-                font.pixelSize: Math.max(7, Theme.monoPx - 3)
-                visible: Daemon.themeCfg !== ""
+            // -------------------------------------------- DISPLAY BRIGHTNESS
+            Rectangle {
+                width: parent.width; height: 1; color: Theme.borderDim
+                visible: Daemon.hasBrightness
             }
 
-            Rectangle { width: parent.width; height: 1; color: Theme.borderDim }
-
-            // ------------------------------------------------------ DISPLAY
             Text {
-                text: "DISPLAY"
+                text: "DISPLAY BRIGHTNESS"
                 color: "#9aa0ab"
                 font.family: Theme.mono
                 font.pixelSize: Theme.monoPx
                 font.letterSpacing: 1
+                visible: Daemon.hasBrightness
             }
 
             HacknetSlider {
@@ -137,132 +160,21 @@ Rectangle {
                 onValueChangedByUser: (val) => Daemon.setBrightness(val)
             }
 
-            Flow {
-                width: parent.width
-                spacing: 8
-
-                LauncherButton {
-                    label: "RAM GUTTER: " + (Daemon.gutterHidden ? "OFF" : "ON")
-                    active: !Daemon.gutterHidden
-                    onTriggered: Daemon.run("hacknetctl", ["toggle-gutter"])
-                }
-
-                LauncherButton {
-                    label: "CONSOLE: " + (Daemon.terminalBottomOnly
-                                          ? "BOTTOM RIGHT" : "FULL COLUMN")
-                    active: !Daemon.terminalBottomOnly
-                    onTriggered: Daemon.toggleTerminalBottomOnly()
-                }
-
-                LauncherButton {
-                    label: "FULLSCREEN"
-                    visible: Daemon.stageWindows.length > 0
-                    onTriggered: {
-                        const w = Daemon.stageWindows.find(x => x.active)
-                                  || Daemon.stageWindows[0];
-                        if (w) Daemon.setFullscreen(String(w.id), true);
-                    }
-                }
-
-                LauncherButton {
-                    label: "LEAVE FULLSCREEN"
-                    visible: Daemon.fullscreenActive
-                    onTriggered: {
-                        if (Daemon.fullscreenWindow)
-                            Daemon.setFullscreen(Daemon.fullscreenWindow, false);
-                    }
-                }
-            }
-
-            Rectangle { width: parent.width; height: 1; color: Theme.borderDim }
-
-            // -------------------------------------------------------- AUDIO
-            Text {
-                text: "AUDIO"
-                color: "#9aa0ab"
-                font.family: Theme.mono
-                font.pixelSize: Theme.monoPx
-                font.letterSpacing: 1
-            }
-
-            HacknetSlider {
-                width: parent.width
-                label: "VOLUME"
-                value: Math.min(1.0, Daemon.currentVolume)
-                displayValue: Daemon.isMuted ? "MUTED" : Math.round(Daemon.currentVolume * 100) + "%"
-                onValueChangedByUser: (val) => Daemon.setVolume(val)
-            }
-
-            Flow {
-                width: parent.width
-                spacing: 8
-
-                LauncherButton {
-                    label: Daemon.isMuted ? "UNMUTE" : "MUTE"
-                    active: Daemon.isMuted
-                    onTriggered: Daemon.toggleMute()
-                }
-
-                LauncherButton {
-                    label: "PLAY / PAUSE"
-                    onTriggered: Daemon.run("hacknetctl", ["media", "play_pause"])
-                }
-
-                LauncherButton {
-                    label: "PREV"
-                    onTriggered: Daemon.run("hacknetctl", ["media", "prev"])
-                }
-
-                LauncherButton {
-                    label: "NEXT"
-                    onTriggered: Daemon.run("hacknetctl", ["media", "next"])
-                }
-            }
-
-            Rectangle { width: parent.width; height: 1; color: Theme.borderDim }
-
-            // ------------------------------------------------ NOTIFICATIONS
-            Text {
-                text: "NOTIFICATIONS"
-                color: "#9aa0ab"
-                font.family: Theme.mono
-                font.pixelSize: Theme.monoPx
-                font.letterSpacing: 1
-            }
-
-            Flow {
-                width: parent.width
-                spacing: 8
-
-                LauncherButton {
-                    label: "DO NOT DISTURB: " + (Daemon.dnd ? "ON" : "OFF")
-                    active: Daemon.dnd
-                    onTriggered: Daemon.setDnd(!Daemon.dnd)
-                }
-
-                LauncherButton {
-                    label: "CLEAR HISTORY"
-                    onTriggered: Notifs.clear()
-                }
-            }
-
+            // ------------------------------------------------- WIFI SETTINGS
             Rectangle {
                 width: parent.width; height: 1; color: Theme.borderDim
-                visible: Daemon.hasWifi || Daemon.hasBluetooth
+                visible: Daemon.hasWifi
             }
 
-            // ------------------------------------------------------ NETWORK
-            // Only shown when the hardware exists.
             Text {
-                text: "NETWORK"
+                text: "WIFI SETTINGS"
                 color: "#9aa0ab"
                 font.family: Theme.mono
                 font.pixelSize: Theme.monoPx
                 font.letterSpacing: 1
-                visible: Daemon.hasWifi || Daemon.hasBluetooth
+                visible: Daemon.hasWifi
             }
 
-            // Wi-Fi Section
             Column {
                 id: wifiSection
                 width: parent.width
@@ -418,7 +330,21 @@ Rectangle {
                 }
             }
 
-            // Bluetooth Section
+            // -------------------------------------------- BLUETOOTH SETTINGS
+            Rectangle {
+                width: parent.width; height: 1; color: Theme.borderDim
+                visible: Daemon.hasBluetooth
+            }
+
+            Text {
+                text: "BLUETOOTH SETTINGS"
+                color: "#9aa0ab"
+                font.family: Theme.mono
+                font.pixelSize: Theme.monoPx
+                font.letterSpacing: 1
+                visible: Daemon.hasBluetooth
+            }
+
             Column {
                 width: parent.width
                 spacing: 8
@@ -496,70 +422,21 @@ Rectangle {
 
             Rectangle { width: parent.width; height: 1; color: Theme.borderDim }
 
-            // ----------------------------------------------------- DESKTOPS
-            Text {
-                text: "DESKTOPS"
-                color: "#9aa0ab"
-                font.family: Theme.mono
-                font.pixelSize: Theme.monoPx
-                font.letterSpacing: 1
-            }
-
             Row {
                 spacing: 8
 
                 LauncherButton {
-                    label: "+ NEW DESKTOP"
-                    onTriggered: Daemon.addDesktop()
+                    label: "OPEN SETTINGS"
+                    onTriggered: {
+                        Ui.closeAll();
+                        Quickshell.execDetached(["hacknet-settings"]);
+                    }
                 }
 
                 LauncherButton {
-                    label: "- REMOVE"
-                    visible: Daemon.desktopCount > 1
-                    onTriggered: Daemon.removeDesktop(Daemon.currentDesktop)
+                    label: "CLOSE"
+                    onTriggered: Ui.closeAll()
                 }
-            }
-
-            Flow {
-                width: parent.width
-                spacing: 8
-
-                Repeater {
-                    model: Daemon.desktopCount
-                    delegate: LauncherButton {
-                        label: "D" + (index + 1)
-                        active: Daemon.currentDesktop === (index + 1)
-                        onTriggered: Daemon.switchDesktop(index + 1)
-                    }
-                }
-            }
-
-            Rectangle { width: parent.width; height: 1; color: Theme.borderDim }
-
-            // ------------------------------------------------------- SYSTEM
-            Text {
-                text: "SYSTEM"
-                color: "#9aa0ab"
-                font.family: Theme.mono
-                font.pixelSize: Theme.monoPx
-                font.letterSpacing: 1
-            }
-
-            Text {
-                width: parent.width
-                text: "host " + Daemon.hostname + "   addr " + Daemon.homeAddress
-                      + "\nuser " + Daemon.username + "   kernel " + Daemon.version
-                color: Theme.dim
-                font.family: Theme.mono
-                font.pixelSize: Math.max(9, Theme.monoPx - 1)
-                lineHeight: 1.3
-            }
-
-            Item { width: 1; height: 6 }
-
-            LauncherButton {
-                label: "CLOSE"
-                onTriggered: Ui.closeAll()
             }
         }
     }

@@ -109,11 +109,21 @@ Rectangle {
             type: "action",
             badge: "[DESKTOP]",
             badgeColor: Theme.accent,
-            title: "Control Center / Settings",
-            desc: "Open display, audio, network, and theme settings",
+            title: "Control Center",
+            desc: "Quick volume, media, brightness, Wi-Fi, and Bluetooth controls",
             icon: "preferences-system",
-            keywords: "settings control center config preferences options display audio network",
+            keywords: "control center volume audio bluetooth wifi brightness media",
             action: function() { Ui.closeAll(); Ui.toggleSettings(); }
+        },
+        {
+            type: "action",
+            badge: "[SYSTEM]",
+            badgeColor: Theme.accent,
+            title: "HacknetOS Settings",
+            desc: "Open full system, theme, desktop, input, and keybind settings",
+            icon: "preferences-system",
+            keywords: "settings preferences theme keybinds display network keyboard mouse timezone",
+            action: function() { Ui.closeAll(); Quickshell.execDetached(["hacknet-settings"]); }
         },
         {
             type: "action",
