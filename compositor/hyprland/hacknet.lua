@@ -200,3 +200,10 @@ hl.exec_cmd("sh -c 'while :; do pgrep -f \"[f]oot.*hacknet-term\" >/dev/null 2>&
 
 -- Keep the pointer usable even with no window focused.
 -- (Not needed for Hyprland, handled by cursor_no_warps)
+
+-- User-defined keybinds and input overrides from hacknet-settings
+local home = os.getenv("HOME") or ""
+if home ~= "" then
+    pcall(dofile, home .. "/.config/hypr/hacknet-user-binds.lua")
+    pcall(dofile, home .. "/.config/hypr/hacknet-user-input.lua")
+end
